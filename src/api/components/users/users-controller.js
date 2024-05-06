@@ -1,17 +1,77 @@
 const usersService = require('./users-service');
 const { errorResponder, errorTypes } = require('../../../core/errors');
 
-/**
- * Handle get list of users request
- * @param {object} request - Express request object
- * @param {object} response - Express response object
- * @param {object} next - Express route middlewares
- * @returns {object} Response object or pass an error to the next route
- */
 async function getUsers(request, response, next) {
   try {
-    const users = await usersService.getUsers();
-    return response.status(200).json(users);
+    const {
+      page_number = 1,
+      page_size = 10,
+      sort = 'email:asc',
+      search = '',
+    } = request.query;
+
+    const { users, totalPages, totalCount } =
+      await usersService.getUsersPaginationSortingSearch({
+        pageSize: parseInt(page_size),
+        page: parseInt(page_number),
+        sort,
+        searchQuery: search,
+      });
+
+    const hasPreviousPage = page_number > 1;
+    const hasNextPage = page_number < totalPages;
+
+    const responseJSON = {
+      page_number: parseInt(page_number),
+      page_size: parseInt(page_size),
+      count: users.length,
+      total_pages: totalPages,
+      has_previous_page: hasPreviousPage,
+      has_next_page: hasNextPage,
+      data: users,
+    };
+
+    return response.status(200).json(responseJSON);
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function getUser(request, response, next) {
+  try {
+    const user = await usersService.getUser(request.params.id);
+
+    if (!user) {
+      throw new Error('Unknown user');
+    }
+
+    return response.status(200).json(user);
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function createUser(request, response, next) {
+  try {
+    const { name, email, password, password_confirm } = request.body;
+
+    // Check confirmation password
+    if (password !== password_confirm) {
+      throw new Error('Password confirmation mismatched');
+    }
+
+    // Email must be unique
+    const emailIsRegistered = await usersService.emailIsRegistered(email);
+    if (emailIsRegistered) {
+      throw new Error('Email is already registered');
+    }
+
+    const success = await usersService.createUser(name, email, password);
+    if (!success) {
+      throw new Error('Failed to create user');
+    }
+
+    return response.status(201).json({ name, email });
   } catch (error) {
     return next(error);
   }

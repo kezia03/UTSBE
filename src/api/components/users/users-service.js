@@ -21,6 +21,36 @@ async function getUsers() {
   return results;
 }
 
+async function getTotalUser() {
+  const totalUser = await usersRepository.getTotalUser();
+  return totalUser;
+}
+
+async function getUsersPaginationSortingSearch(
+  pageSize,
+  skip,
+  sortBy,
+  sortOrder,
+  searchQuery
+) {
+  const users = await usersRepository.getUsersPaginationSortingSearch(
+    pageSize,
+    skip,
+    sortBy,
+    sortOrder,
+    searchQuery
+  );
+
+  return {
+    totalCount: await getTotalUser(),
+    users: users.map((user) => ({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+    })),
+  };
+}
+
 /**
  * Get user detail
  * @param {string} id - User ID
@@ -166,8 +196,10 @@ module.exports = {
   getUser,
   createUser,
   updateUser,
+  getTotalUser,
   deleteUser,
   emailIsRegistered,
   checkPassword,
   changePassword,
+  getUsersPaginationSortingSearch,
 };
